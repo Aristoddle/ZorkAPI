@@ -1,36 +1,66 @@
 #!/usr/bin/env python3
-from flask import Flask
-from redis import Redis, RedisError
+import errno
 import os
+import posix
 import socket
 import subprocess
-from subprocess import Popen, PIPE
 from string import Template
-import errno
-import posix
-from flask import request
+from subprocess import PIPE, Popen
+
 import pexpect
+from flask import Flask, request
+from redis import Redis, RedisError
+
+global child
 
 # Connect to Redis 
 #redis = Redis(host="redis", db=0, socket_connect_timeout=2, socket_timeout=2)
 app = Flask(__name__)
 
-
-global child
 @app.route("/start", methods=['GET', 'POST'])
 def start():
     global child
     game = request.args.get('game')
     os.setuid(1000)
-    
-    if (game == 'zork'):
-        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz /home/J3lanzone/Zork1/zork1.z5')
-    elif (game == 'hike'):
-        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz /home/J3lanzone/HitchHikers/hhgg.z3')
-    else:
-         child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz /home/J3lanzone/Zork1/zork1.z5')
 
-    return(f"loaded {game}")
+    try:
+        child.close()
+    
+    except:
+        pass
+
+    if (game == 'hike'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/HitchHikers/hhgg.z3')
+        game = "The Hitchiker\'s Guide to the Galaxy"
+    
+    elif (game == 'spell'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Spellbreaker/spellbre.dat') 
+        game = "Spellbreaker"
+
+    elif (game == 'wish'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Wishbringer/wishbrin.dat')
+        game = "Wishbringer"
+
+    elif (game == 'zork1'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork1/zork1.z5')
+        game = "Zork One"
+
+    elif (game == 'zork2'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork2/zork2.dat')
+        game = "Zork Two"
+
+    elif (game == 'zork3'):
+        child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork3/ZORK3.DAT')
+        game = "Zork Three"
+
+    else:
+         child = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Zork3/zork1.z5')
+
+    child.expect('Serial [n|N]umber [0-9]+')
+    firstLine = child.before.decode('utf-8')
+    after = child.after.decode('utf-8')
+
+    return(f"Loaded {game}.\n Before: {firstLine} {after}")
 
 @app.route("/check", methods=['GET', 'POST'])
 def check():
@@ -51,5 +81,4 @@ def action():
 if __name__ == "__main__":
     #start()
     app.run(host='0.0.0.0', port=443)
-
-
+    global child

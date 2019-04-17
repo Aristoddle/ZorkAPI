@@ -679,3 +679,6 @@ ls
 sudo ./app.py 
 ls
 exit
+ls
+cd Zork1
+ls
