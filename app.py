@@ -17,6 +17,7 @@ import pickle
 
 USER_PROFILES_FILE = 'profiles.pickle'
 SESSION_TYPE = 'filesystem'
+ROOT_PATH = '/home/J3lanzone'
 
 # Connect to Redis 
 # redis = Redis(host="redis", db=0, socket_connect_timeout=2, socket_timeout=2)
@@ -43,59 +44,73 @@ profileObjectExample = {
     "lastSaveFile": ""
 }
 
+def loadSession():
+    if (session.get("profiles", None)):
+        with open(USER_PROFILES_FILE, 'rb') as f:
+            try:
+                session["profiles"] = pickle.load(f)
+            except:
+                session["profiles"] = {}
+
+def dumpSession(email, title, saveFile, game):
+    if (title):
+        print(f"saveFile {saveFile}")
+        saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
+        if f"AutoSave" not in session["profiles"][email][title]:
+            session["profiles"][email][title].append(f"AutoSave")
+            session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/AutoSave"
+            if (saveFile != None):
+                print("still entered")
+                saveGame(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
+                session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
+                if f"{saveFile}" not in session["profiles"][email][title]:
+                    session["profiles"][email][title].append(f"{saveFile}")
+    
+    session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
+
+    with open(USER_PROFILES_FILE, 'wb') as f:
+        pickle.dump(session["profiles"], f)
 
 @app.route("/user", methods=['GET', 'POST'])
 def user():
+    loadSession()
     email = request.args.get('email')
-    saveFilesList = []
-    
-    # open profiles pickle, load to the cache
-    with open(USER_PROFILES_FILE, 'rb') as f:
-        try:
-            session["profiles"] = pickle.load(f)
-        except:
-            session["profiles"] = {}
 
-    # if the email is in the system, return their data
-    if (session["profiles"] and
-        session["profiles"][email]):
+    # Try referencing the user; if they're not there, it'll hit except
+    try:
         session["profiles"][email]["newUser"] = False
-        print("Not new user")
-        #todo may break
+        #dump session info w extra new user
+        dumpSession(email, None, None, None)
+        
         return jsonify(session["profiles"][email])
 
     # else, set up a new acc, write it to the pickle, return the new user
-    else:
+    except:
         print("new user")
         session["profiles"][email] = {
-            "userEmail": email,
-            "savesZork1": [],
-            "savesZork2": [],
-            "savesZork3": [],
-            "savesHitchHikers": [],
-            "savesWishbringer": [],
-            "savesSpellbreaker": [],
-            "lastSaveFile": "",
+            "hike": [],
+            "spell": [],
+            "wish": [],
+            "zork1": [],
+            "zork2": [],
+            "zork3": [],
+            "lastSaveFile": "AutoSave",
             "newUser": True
         }
+        #Make a new folder for the new user
+        os.makedirs(f"{ROOT_PATH}/{email}")
         #dump session info w extra new user
-        with open(USER_PROFILES_FILE, 'wb') as f:
-            pickle.dump(session["profiles"], f)
-        
+        dumpSession(email, None, None, None)
         return jsonify(session["profiles"][email])
 
 
 @app.route("/start", methods=['GET', 'POST'])
 def start():
-    email = request.args.get('email')
-    title = request.args.get('game')
-    saveFile = None
-    
-    try:
-        saveFile = request.args.get('save')
-    except:
-        pass
+    loadSession()
 
+    email = request.args.get('email')
+    title = request.args.get('title')
+    saveFile = request.args.get('save', None)
     os.setuid(1000)
 
     game, title = startGame(title)
@@ -105,7 +120,7 @@ def start():
     titleInfo = game.before.decode('utf-8')
     titleInfoEnd = game.after.decode('utf-8')
     game.expect('>')
-    firstLine = game.after.decode('utf-8')
+    firstLine = game.before.decode('utf-8')
 
     print("before things break...")
     print(f"{titleInfo} {titleInfoEnd} oioioioi {firstLine}")
@@ -114,61 +129,91 @@ def start():
     game.expect('>')
     print(game.before.decode('utf-8'))
 
+    #if this is the first time you've played this game
+    if (not session["profiles"][email][title]):
+        os.makedirs(f"{ROOT_PATH}/{email}/{title}")
+
     # this is @ game init, so load them back in, and give a general
     # description of their surroundings
     if (saveFile):
-        return restoreSave(saveFile, game)
+        if (os.path.isfile(f"{ROOT_PATH}/{email}/{title}/{saveFile}")):
+            firstLine = restoreSave(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
+        else:
+            dumpSession(email, title, saveFile, game)
     else:
-        autoSave(f"{email}_AutoSave", game)
-        with open(USER_PROFILES_FILE, 'wb') as f:
-            pickle.dump(session["profiles"], f)
+        if (os.path.isfile(f"{ROOT_PATH}/{email}/{title}/AutoSave")):
+            firstLine = restoreSave(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
+        else:
+            dumpSession(email, title, "AutoSave", game)
+            
+    returnObj = {
+        "titleInfo":    titleInfo + titleInfoEnd,
+        "firstLine":    firstLine,
+        "allinfo":      session["profiles"][email]
+    }
 
-        return(f"{titleInfo} {titleInfoEnd} oioioioi {firstLine}")
+    return(jsonify(returnObj))
     
 @app.route("/action", methods=['GET', 'POST'])
 def action():
-
+    loadSession()
+    print(session["profiles"])
     email       = request.args.get('email')
-    title       = request.args.get('game')
-    save        = request.args.get('save')
-    command     = request.args.get('cmd')
+    title       = request.args.get('title')
+    saveFile    = request.args.get('save', None)
+    action      = request.args.get('action')
 
     # start a game, restore the save
     game, title = startGame(title)
-    areaDesc = restoreSave(save, game)
-
-    # send an actual command, clean it up
-    game.sendline(command)
-    game.expect('>')
+    if (saveFile):
+        areaDesc = restoreSave(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
+        print("entered ehre")
+    else:
+        print("entered this one")
+        areaDesc = restoreSave(session["profiles"][email]["lastSaveFile"], game)
+    
+    # send an actual action, clean it up
+    print(f"My action: {action}")
+    
+    game.expect('>|pexpect.EOF')
+    game.sendline(action)
+    game.expect('>|pexpect.EOF')
     output = game.before.decode('utf-8')
-    output = output.replace(command,"",1)
+
+    resObj = {
+        "output":   output,
+        "areaDesc": areaDesc,
+        "allinfo": session["profiles"][email]
+    }
 
     # autosave & save to your slot
-    autoSave(f"{email}_AutoSave", game)
-    autoSave("save", game)
+    dumpSession(email, title, saveFile, game)
 
     # return whatever the game has given you
-    return(output)
+    return(jsonify(resObj))
 
-def autoSave(savename, game):
+def saveGame(savename, game):
     game.sendline(f"save")
     game.expect(':')
     game.sendline(savename)
     if (os.path.isfile(savename)):
-        game.expect('?')
+        game.expect('\?')
         game.sendline("yes")
     game.expect('>')
+
 
 def restoreSave(saveName, game):
     game.sendline("restore")
     game.expect(':')
+    trash = game.before.decode('utf-8')
     game.sendline(saveName)
-    game.sendline("look")
     game.expect('>')
+    trash = game.before.decode('utf-8')
+    print("trash3" + game.before.decode('utf-8'))
     return(game.before.decode('utf-8'))
 
 def startGame(title):
-
+    print(f"title: {title}")
     if (title == 'hike'):
         game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/HitchHikers/hhgg.z3')
     elif (title == 'spell'):
@@ -182,8 +227,9 @@ def startGame(title):
     elif (title == 'zork3'):
         game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork3/ZORK3.DAT')
     else:
-         game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork1/zork1.z5')
-         title = 'zork1'
+        print("miss")
+        game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/Zork1/zork1.z5')
+        title = 'zork1'
 
     return (game, title)
 
