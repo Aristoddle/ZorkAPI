@@ -110,7 +110,7 @@ def start():
     print("before things break...")
     print(f"{titleInfo} {titleInfoEnd} oioioioi {firstLine}")
 
-    game.sendLine("look")
+    game.sendline("look")
     game.expect('>')
     print(game.before.decode('utf-8'))
 
@@ -151,19 +151,19 @@ def action():
     return(output)
 
 def autoSave(savename, game):
-    game.sendLine(f"save")
+    game.sendline(f"save")
     game.expect(':')
-    game.sendLine(savename)
+    game.sendline(savename)
     if (os.path.isfile(savename)):
         game.expect('?')
-        game.sendLine("yes")
+        game.sendline("yes")
     game.expect('>')
 
 def restoreSave(saveName, game):
-    game.sendLine("restore")
+    game.sendline("restore")
     game.expect(':')
-    game.sendLine(saveName)
-    game.sendLine("look")
+    game.sendline(saveName)
+    game.sendline("look")
     game.expect('>')
     return(game.before.decode('utf-8'))
 
