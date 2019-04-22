@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import errno
 import os
 import os.path
@@ -53,37 +53,20 @@ def loadSession():
         session["profiles"] = {}
 
 def dumpSession(email, title, saveFile, game):
-
-    # if we're actively working on a title save (e.g. a game action)
-    if (title):
-        print(f"saveFile {saveFile}")
+    print(f"dumping... email: {email}, title: {title}, saveFile {saveFile}")
+    if (game):
         saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
-        if f"AutoSave" not in session["profiles"][email][title]:
+        if (f"AutoSave" not in session["profiles"][email][title]):
             session["profiles"][email][title].append(f"AutoSave")
             session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/AutoSave"
-            if (saveFile != None):
+            if (saveFile != "AutoSave"):
                 print("still entered")
                 saveGame(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
                 session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
                 if f"{saveFile}" not in session["profiles"][email][title]:
                     session["profiles"][email][title].append(f"{saveFile}")
-    # we've initted or set a new user
-    else:
-        if (email in session["profiles"]):
-            session["profiles"][email]["newUser"] = False
-        else:
-            session["profiles"][email] = {
-                "userEmail": email,
-                "hike": [],
-                "spell": [],
-                "wish": [],
-                "zork1": [],
-                "zork2": [],
-                "zork3": [],
-                "lastSaveFile": None,
-                "newUser": True
-            }
 
+    
     with open(USER_PROFILES_FILE, 'wb') as f:
         pickle.dump(session["profiles"], f)
 
@@ -92,12 +75,27 @@ def user():
     loadSession()
     email = request.args.get('email')
 
-    if (email not in session["profiles"]):
-        try:
-            os.makedirs(f"{ROOT_PATH}/{email}")
-        except:
-            pass
+    try:
+        session["profiles"][email]
+    except:
+        print("hit exception -- user is new")
+        session["profiles"][email] = {
+            "userEmail": email,
+            "hike": [],
+            "spell": [],
+            "wish": [],
+            "zork1": [],
+            "zork2": [],
+            "zork3": [],
+            "lastSaveFile": None,
+            "newUser": True
+        }
 
+        if (not os.path.isfile(f"{ROOT_PATH}/{email}")):
+            os.makedirs(f"{ROOT_PATH}/{email}")
+        else:
+            session["profiles"][email]["newUser"] = False;
+    
     dumpSession(email, None, None, None)
     return jsonify(session["profiles"][email])
 
@@ -130,7 +128,7 @@ def start():
     print(game.before.decode('utf-8'))
 
     #if this is the first time you've played this game
-    if (not session["profiles"][email][title]):
+    if (not os.path.isfile(f"{ROOT_PATH}/{email}/{title}")):
         os.makedirs(f"{ROOT_PATH}/{email}/{title}")
 
     # this is @ game init, so load them back in, and give a general
