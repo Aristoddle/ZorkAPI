@@ -32,27 +32,29 @@ Session(app)
 # here's how many there are?
 
 profileObjectExample = {
+    "lastSaveFile": "file path",
+    "newUser": bool,
+    
+    "hike": ["hike save files"],
+    "spell": ["spell save files"],
+    "wish": ["wish save files"],
+    "zork1": ["zork1 files"],
+    "zork2": ["zork2 files"],
+    "zork3": ["zork3 files"],
+
     "userEmail": "",
-
-    "savesZork1": [],
-    "savesZork2": [],
-    "savesZork3": [],
-    "savesHitchHikers": [],
-    "savesWishbringer": [],
-    "savesSpellbreaker": [],
-
-    "lastSaveFile": ""
 }
 
 def loadSession():
     if (session.get("profiles", None)):
         with open(USER_PROFILES_FILE, 'rb') as f:
-            try:
                 session["profiles"] = pickle.load(f)
-            except:
-                session["profiles"] = {}
+    else:
+        session["profiles"] = {}
 
 def dumpSession(email, title, saveFile, game):
+
+    # if we're actively working on a title save (e.g. a game action)
     if (title):
         print(f"saveFile {saveFile}")
         saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
@@ -65,8 +67,22 @@ def dumpSession(email, title, saveFile, game):
                 session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
                 if f"{saveFile}" not in session["profiles"][email][title]:
                     session["profiles"][email][title].append(f"{saveFile}")
-    
-    session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
+    # we've initted or set a new user
+    else:
+        if (email in session["profiles"]):
+            session["profiles"][email]["newUser"] = False
+        else:
+            session["profiles"][email] = {
+                "userEmail": email,
+                "hike": [],
+                "spell": [],
+                "wish": [],
+                "zork1": [],
+                "zork2": [],
+                "zork3": [],
+                "lastSaveFile": None,
+                "newUser": True
+            }
 
     with open(USER_PROFILES_FILE, 'wb') as f:
         pickle.dump(session["profiles"], f)
@@ -76,32 +92,16 @@ def user():
     loadSession()
     email = request.args.get('email')
 
-    # Try referencing the user; if they're not there, it'll hit except
-    try:
-        session["profiles"][email]["newUser"] = False
-        #dump session info w extra new user
-        dumpSession(email, None, None, None)
-        
-        return jsonify(session["profiles"][email])
+    if (email not in session["profiles"]):
+        try:
+            os.makedirs(f"{ROOT_PATH}/{email}")
+        except:
+            pass
+
+    dumpSession(email, None, None, None)
+    return jsonify(session["profiles"][email])
 
     # else, set up a new acc, write it to the pickle, return the new user
-    except:
-        print("new user")
-        session["profiles"][email] = {
-            "hike": [],
-            "spell": [],
-            "wish": [],
-            "zork1": [],
-            "zork2": [],
-            "zork3": [],
-            "lastSaveFile": "AutoSave",
-            "newUser": True
-        }
-        #Make a new folder for the new user
-        os.makedirs(f"{ROOT_PATH}/{email}")
-        #dump session info w extra new user
-        dumpSession(email, None, None, None)
-        return jsonify(session["profiles"][email])
 
 
 @app.route("/start", methods=['GET', 'POST'])
@@ -149,7 +149,7 @@ def start():
     returnObj = {
         "titleInfo":    titleInfo + titleInfoEnd,
         "firstLine":    firstLine,
-        "allinfo":      session["profiles"][email]
+        "userProfile":  session["profiles"][email]
     }
 
     return(jsonify(returnObj))
@@ -181,9 +181,9 @@ def action():
     output = game.before.decode('utf-8')
 
     resObj = {
-        "output":   output,
-        "areaDesc": areaDesc,
-        "allinfo": session["profiles"][email]
+        "cmdOutput":        output,
+        "lookOutput":       areaDesc,
+        "userProfile":      session["profiles"][email]
     }
 
     # autosave & save to your slot
