@@ -15,7 +15,7 @@ from redis import Redis, RedisError
 
 import pickle
 
-USER_PROFILES_FILE = 'profiles.pickle'
+USER_PROFILES_FILE = './profiles.pickle'
 SESSION_TYPE = 'filesystem'
 ROOT_PATH = '/home/J3lanzone'
 
@@ -46,26 +46,39 @@ profileObjectExample = {
 }
 
 def loadSession():
-    if (session.get("profiles", None)):
+    try:
         with open(USER_PROFILES_FILE, 'rb') as f:
-                session["profiles"] = pickle.load(f)
-    else:
+            session["profiles"] = pickle.load(f)
+    except:
         session["profiles"] = {}
 
 def dumpSession(email, title, saveFile, game):
     print(f"dumping... email: {email}, title: {title}, saveFile {saveFile}")
     if (game):
         saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
-        if (f"AutoSave" not in session["profiles"][email][title]):
-            session["profiles"][email][title].append(f"AutoSave")
-            session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/AutoSave"
-            if (saveFile != "AutoSave"):
-                print("still entered")
-                saveGame(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
-                session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
-                if f"{saveFile}" not in session["profiles"][email][title]:
-                    session["profiles"][email][title].append(f"{saveFile}")
-
+        try:
+            if (f"AutoSave" not in session["profiles"][email][title]):
+                session["profiles"][email][title].append(f"AutoSave")
+                session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/AutoSave"
+                if (saveFile != "AutoSave"):
+                    print("still entered")
+                    saveGame(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
+                    session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
+                    if f"{saveFile}" not in session["profiles"][email][title]:
+                        session["profiles"][email][title].append(f"{saveFile}")
+        except:
+            pass
+    
+    session["profiles"][email] = {
+            "userEmail": email,
+            "hike": [],
+            "spell": [],
+            "wish": [],
+            "zork1": [],
+            "zork2": [],
+            "zork3": [],
+            "lastSaveFile": saveFile,
+        };                
     
     with open(USER_PROFILES_FILE, 'wb') as f:
         pickle.dump(session["profiles"], f)
@@ -91,8 +104,10 @@ def user():
             "newUser": True
         }
 
-        if (not os.path.isfile(f"{ROOT_PATH}/{email}")):
+        try:
             os.makedirs(f"{ROOT_PATH}/{email}")
+        except:
+            print("file already exists")
         else:
             session["profiles"][email]["newUser"] = False;
     
@@ -128,8 +143,10 @@ def start():
     print(game.before.decode('utf-8'))
 
     #if this is the first time you've played this game
-    if (not os.path.isfile(f"{ROOT_PATH}/{email}/{title}")):
+    try:
         os.makedirs(f"{ROOT_PATH}/{email}/{title}")
+    except:
+        pass
 
     # this is @ game init, so load them back in, and give a general
     # description of their surroundings
@@ -143,7 +160,9 @@ def start():
             firstLine = restoreSave(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
         else:
             dumpSession(email, title, "AutoSave", game)
-            
+    
+    print(session["profiles"])
+
     returnObj = {
         "titleInfo":    titleInfo + titleInfoEnd,
         "firstLine":    firstLine,
