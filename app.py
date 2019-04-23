@@ -2,18 +2,17 @@
 import errno
 import os
 import os.path
+import pickle
 import posix
 import socket
-import subprocess
+import subprocess 
 from string import Template
 from subprocess import PIPE, Popen
 
 import pexpect
-from flask import Flask, request, session, jsonify
+from flask import Flask, jsonify, request, session
 from flask_session import Session
 from redis import Redis, RedisError
-
-import pickle
 
 USER_PROFILES_FILE = './profiles.pickle'
 SESSION_TYPE = 'filesystem'
@@ -27,21 +26,17 @@ Session(app)
 
 
 # define response object to say: 
-# person has some save files
+# person has some save files 
 # here's what they are
 # here's how many there are?
 
 profileObjectExample = {
-    "lastSaveFile": "file path",
-    "newUser": bool,
-    
     "hike": ["hike save files"],
     "spell": ["spell save files"],
     "wish": ["wish save files"],
     "zork1": ["zork1 files"],
     "zork2": ["zork2 files"],
     "zork3": ["zork3 files"],
-
     "userEmail": "",
 }
 
@@ -52,32 +47,21 @@ def loadSession():
     except:
         session["profiles"] = {}
 
-def dumpSession(email, title, saveFile, game):
-    print(f"dumping... email: {email}, title: {title}, saveFile {saveFile}")
+def dumpSession(email, title, game):
+    print(f"dumping... email: {email}, title: {title}")
     if (game):
+        if ("AutoSave" not in session["profiles"][email][title]):
+            session["profiles"][email][title].append("AutoSave")
         saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
-        try:
-            if (f"AutoSave" not in session["profiles"][email][title]):
-                session["profiles"][email][title].append(f"AutoSave")
-                session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/AutoSave"
-                if (saveFile != "AutoSave"):
-                    print("still entered")
-                    saveGame(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
-                    session["profiles"][email]["lastSaveFile"] = f"{ROOT_PATH}/{email}/{title}/{saveFile}"
-                    if f"{saveFile}" not in session["profiles"][email][title]:
-                        session["profiles"][email][title].append(f"{saveFile}")
-        except:
-            pass
-    
-    session["profiles"][email] = {
-            "userEmail": email,
-            "hike": [],
-            "spell": [],
-            "wish": [],
-            "zork1": [],
-            "zork2": [],
-            "zork3": [],
-            "lastSaveFile": saveFile,
+    else :
+        session["profiles"][email] = {
+                "userEmail": email,
+                "hike": [],
+                "spell": [],
+                "wish": [],
+                "zork1": [],
+                "zork2": [],
+                "zork3": []
         };                
     
     with open(USER_PROFILES_FILE, 'wb') as f:
@@ -88,10 +72,8 @@ def user():
     loadSession()
     email = request.args.get('email')
 
-    try:
-        session["profiles"][email]
-    except:
-        print("hit exception -- user is new")
+    if (not session["profiles"].get(email, None)):
+        print("New User...")
         session["profiles"][email] = {
             "userEmail": email,
             "hike": [],
@@ -100,16 +82,13 @@ def user():
             "zork1": [],
             "zork2": [],
             "zork3": [],
-            "lastSaveFile": None,
-            "newUser": True
+            "lastSaveFile": None
         }
 
         try:
             os.makedirs(f"{ROOT_PATH}/{email}")
         except:
             print("file already exists")
-        else:
-            session["profiles"][email]["newUser"] = False;
     
     dumpSession(email, None, None, None)
     return jsonify(session["profiles"][email])
@@ -170,24 +149,25 @@ def start():
     }
 
     return(jsonify(returnObj))
-    
+
+@app.route("/save", methods=['GET', 'POST'])
+def save():
+    email       = request.args.get('email')
+    title       = request.args.get('title')
+    saveName    = request.args.get('save')
+
 @app.route("/action", methods=['GET', 'POST'])
 def action():
     loadSession()
     print(session["profiles"])
     email       = request.args.get('email')
     title       = request.args.get('title')
-    saveFile    = request.args.get('save', None)
     action      = request.args.get('action')
 
     # start a game, restore the save
     game, title = startGame(title)
-    if (saveFile):
-        areaDesc = restoreSave(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
-        print("entered ehre")
-    else:
-        print("entered this one")
-        areaDesc = restoreSave(session["profiles"][email]["lastSaveFile"], game)
+    areaDesc = restoreSave(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
+    
     
     # send an actual action, clean it up
     print(f"My action: {action}")
