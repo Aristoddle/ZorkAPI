@@ -1,4 +1,4 @@
-#!/usr/bin/python3.7
+#!/usr/bin/python3
 import errno
 import os
 import os.path
@@ -96,7 +96,7 @@ def restoreSave(saveName, game):
     return(outputs)
 
 def getFirstLines(game):
-    print(f"\n\n\nGET FIRST LINE CALLED\n {saveName}\n\n\n")
+    print(f"\n\n\nGET FIRST LINE CALLED\n {game}\n\n\n")
     game.expect('Serial [n|N]umber [0-9]+')
     titleInfo = game.before.decode('utf-8')
     titleInfo += game.after.decode('utf-8')
@@ -105,7 +105,7 @@ def getFirstLines(game):
     return (titleInfo, firstLine)
 
 def startGame(title):
-    print(f"\n\n\nSPAWN GAME CALLED\n {saveName}\n\n\n")
+    print(f"\n\n\nSPAWN GAME CALLED\n {title}\n\n\n")
     if (title == 'hike'):
         game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/HitchHikers/hhgg.z3')
     elif (title == 'spell'):
@@ -127,7 +127,7 @@ def startGame(title):
 
 @app.route("/user", methods=['GET', 'POST'])
 def user():
-    print(f"\n\n\nUSER CALLED\n {saveName}\n\n\n")
+    print(f"\n\n\nUSER CALLED\n\n\n")
     loadSession()
     print("\n\nNewUser Called\n\n")
     email = request.args.get('email')
