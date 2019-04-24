@@ -1,9 +1,8 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.7
 import errno
 import os
 import os.path
 import pickle
-import posix
 import socket
 import subprocess 
 from string import Template
@@ -14,9 +13,11 @@ from flask import Flask, jsonify, request, session
 from flask_session import Session
 from redis import Redis, RedisError
 
+import platform
+
 USER_PROFILES_FILE = './profiles.pickle'
 SESSION_TYPE = 'filesystem'
-ROOT_PATH = '/home/J3lanzone'
+# ROOT_PATH = '/home/J3lanzone/LinuxSaves' if (platform.system() == "Linux") else "C:\\Users\\J3lan\\OneDrive\\Documents\\Code\\ZorkAPI\\WindowsSaves"
 
 # Connect to Redis 
 # redis = Redis(host="redis", db=0, socket_connect_timeout=2, socket_timeout=2)
@@ -47,12 +48,11 @@ def loadSession():
     except:
         session["profiles"] = {}
 
-def dumpSession(email, title, game):
-    print(f"dumping... email: {email}, title: {title}")
+def dumpSession(email, title, game, saveFile="AutoSave"):
+    print(f"dumping... email: {email}, title: {title}, savefile: {saveFile}")
     if (game):
         if ("AutoSave" not in session["profiles"][email][title]):
             session["profiles"][email][title].append("AutoSave")
-        saveGame(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
     else :
         session["profiles"][email] = {
                 "userEmail": email,
@@ -67,150 +67,45 @@ def dumpSession(email, title, game):
     with open(USER_PROFILES_FILE, 'wb') as f:
         pickle.dump(session["profiles"], f)
 
-@app.route("/user", methods=['GET', 'POST'])
-def user():
-    loadSession()
-    email = request.args.get('email')
-
-    if (not session["profiles"].get(email, None)):
-        print("New User...")
-        session["profiles"][email] = {
-            "userEmail": email,
-            "hike": [],
-            "spell": [],
-            "wish": [],
-            "zork1": [],
-            "zork2": [],
-            "zork3": [],
-            "lastSaveFile": None
-        }
-
-        try:
-            os.makedirs(f"{ROOT_PATH}/{email}")
-        except:
-            print("file already exists")
-    
-    dumpSession(email, None, None, None)
-    return jsonify(session["profiles"][email])
-
-    # else, set up a new acc, write it to the pickle, return the new user
-
-
-@app.route("/start", methods=['GET', 'POST'])
-def start():
-    loadSession()
-
-    email = request.args.get('email')
-    title = request.args.get('title')
-    saveFile = request.args.get('save', None)
-    os.setuid(1000)
-
-    game, title = startGame(title)
-
-    # Grab general game data
-    game.expect('Serial [n|N]umber [0-9]+')
-    titleInfo = game.before.decode('utf-8')
-    titleInfoEnd = game.after.decode('utf-8')
-    game.expect('>')
-    firstLine = game.before.decode('utf-8')
-
-    print("before things break...")
-    print(f"{titleInfo} {titleInfoEnd} oioioioi {firstLine}")
-
-    game.sendline("look")
-    game.expect('>')
-    print(game.before.decode('utf-8'))
-
-    #if this is the first time you've played this game
-    try:
-        os.makedirs(f"{ROOT_PATH}/{email}/{title}")
-    except:
-        pass
-
-    # this is @ game init, so load them back in, and give a general
-    # description of their surroundings
-    if (saveFile):
-        if (os.path.isfile(f"{ROOT_PATH}/{email}/{title}/{saveFile}")):
-            firstLine = restoreSave(f"{ROOT_PATH}/{email}/{title}/{saveFile}", game)
-        else:
-            dumpSession(email, title, saveFile, game)
-    else:
-        if (os.path.isfile(f"{ROOT_PATH}/{email}/{title}/AutoSave")):
-            firstLine = restoreSave(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
-        else:
-            dumpSession(email, title, "AutoSave", game)
-    
-    print(session["profiles"])
-
-    returnObj = {
-        "titleInfo":    titleInfo + titleInfoEnd,
-        "firstLine":    firstLine,
-        "userProfile":  session["profiles"][email]
-    }
-
-    return(jsonify(returnObj))
-
-@app.route("/save", methods=['GET', 'POST'])
-def save():
-    email       = request.args.get('email')
-    title       = request.args.get('title')
-    saveName    = request.args.get('save')
-
-@app.route("/action", methods=['GET', 'POST'])
-def action():
-    loadSession()
-    print(session["profiles"])
-    email       = request.args.get('email')
-    title       = request.args.get('title')
-    action      = request.args.get('action')
-
-    # start a game, restore the save
-    game, title = startGame(title)
-    areaDesc = restoreSave(f"{ROOT_PATH}/{email}/{title}/AutoSave", game)
-    
-    
-    # send an actual action, clean it up
-    print(f"My action: {action}")
-    
-    game.expect('>|pexpect.EOF')
-    game.sendline(action)
-    game.expect('>|pexpect.EOF')
-    output = game.before.decode('utf-8')
-
-    resObj = {
-        "cmdOutput":        output,
-        "lookOutput":       areaDesc,
-        "userProfile":      session["profiles"][email]
-    }
-
-    # autosave & save to your slot
-    dumpSession(email, title, saveFile, game)
-
-    # return whatever the game has given you
-    return(jsonify(resObj))
-
-def saveGame(savename, game):
+def saveGame(saveName, game):
+    print(f"\n\n SAVEGAME CALLED:  {saveName}\n\n")
     game.sendline(f"save")
     game.expect(':')
-    game.sendline(savename)
-    if (os.path.isfile(savename)):
-        game.expect('\?')
+    prompt = game.before.decode('utf-8')
+    game.sendline(saveName)
+    entries = saveName.split(".")
+    if entries[2] in session["profiles"][entries[0]][entries[1]]:
+        game.expect(['\?', pexpect.EOF, pexpect.TIMEOUT], timeout=5)
         game.sendline("yes")
-    game.expect('>')
-
+    game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
+    response = game.before.decode('utf-8')
 
 def restoreSave(saveName, game):
+    print(f"\n\n\nRESTORE SAVE CALLED\n {saveName}\n\n\n")
+    titleInfo, firstLine = getFirstLines(game)
     game.sendline("restore")
     game.expect(':')
     trash = game.before.decode('utf-8')
     game.sendline(saveName)
-    game.expect('>')
+    game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
     trash = game.before.decode('utf-8')
-    print("trash3" + game.before.decode('utf-8'))
-    return(game.before.decode('utf-8'))
+    outputs = {
+        titleInfo: titleInfo,
+        firstLine: firstLine
+    }
+    return(outputs)
+
+def getFirstLines(game):
+    print(f"\n\n\nGET FIRST LINE CALLED\n {saveName}\n\n\n")
+    game.expect('Serial [n|N]umber [0-9]+')
+    titleInfo = game.before.decode('utf-8')
+    titleInfo += game.after.decode('utf-8')
+    game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
+    firstLine = game.before.decode('utf-8')
+    return (titleInfo, firstLine)
 
 def startGame(title):
-    print(f"title: {title}")
+    print(f"\n\n\nSPAWN GAME CALLED\n {saveName}\n\n\n")
     if (title == 'hike'):
         game = pexpect.spawn('/home/J3lanzone/frotz/dfrotz -mp /home/J3lanzone/Games/HitchHikers/hhgg.z3')
     elif (title == 'spell'):
@@ -229,6 +124,148 @@ def startGame(title):
         title = 'zork1'
 
     return (game, title)
+
+@app.route("/user", methods=['GET', 'POST'])
+def user():
+    print(f"\n\n\nUSER CALLED\n {saveName}\n\n\n")
+    loadSession()
+    print("\n\nNewUser Called\n\n")
+    email = request.args.get('email')
+
+    if (not session["profiles"].get(email, None)):
+        print("New User...")
+        session["profiles"][email] = {
+            "userEmail": email,
+            "hike": [],
+            "spell": [],
+            "wish": [],
+            "zork1": [],
+            "zork2": [],
+            "zork3": []
+        }
+
+        # try:
+        #     os.makedirs(f"{ROOT_PATH}/{email}")
+        # except:
+        #     print("file already exists")
+    
+    dumpSession(email, None, None)
+    return jsonify(session["profiles"][email])
+
+# else, set up a new acc, write it to the pickle, return the new user
+@app.route("/newGame", methods=['GET', 'POST'])
+def newGame():
+    print("\n\nNewGame Called\n\n")
+    loadSession()
+    email       = request.args.get('email')
+    title       = request.args.get('title')
+    game, title = startGame(title)
+    if ("AutoSave" in session["profiles"][email][title]):
+        os.remove(f"./{email}.{title}.AutoSave")
+        session["profiles"][email][title].remove("AutoSave")
+
+    # try:
+    #     os.makedirs(f"{ROOT_PATH}/{email}/{title}")
+    # except:
+    #     print("makedirs failed")
+
+    try:
+        titleInfo, firstLine = getFirstLines(game)
+        saveGame(f"{email}.{title}.AutoSave", game)
+    except:
+        print ("import broke somehow...")
+    
+    userProfile = session["profiles"][email]
+    print(f"titleInfo: {titleInfo}, firstLine: {firstLine}, userProfile: {userProfile}")
+    returnObj = {
+        "titleInfo":    titleInfo,
+        "firstLine":    firstLine,
+        "userProfile":  session["profiles"][email]
+    }
+    dumpSession(email, title, game)
+    game.terminate()
+    return (jsonify(returnObj))
+
+# So start should get AutoSave, or the name of some SaveFile
+@app.route("/start", methods=['GET', 'POST'])
+def start():
+    print("\n\nStart Called\n\n")
+    loadSession()
+    email = request.args.get('email')
+    title = request.args.get('title')
+    saveFile  = request.args.get('save')
+    game, title = startGame(title)
+        
+    try: 
+        restoreObj = restoreSave(f"{email}.{title}.{saveFile}", game)
+    except:
+        print ("import broke somehow...")
+
+    titleInfo   =    restoreObj["titleInfo"]
+    firstLine   =    restoreObj["firstLine"]
+    userProfile =    session["profiles"][email]
+    print(f"titleInfo: {titleInfo}, firstLine: {firstLine}, userProfile: {userProfile}")
+    returnObj = {
+        "titleInfo":    restoreObj["titleInfo"],
+        "firstLine":    restoreObj["firstLine"],
+        "userProfile":  session["profiles"][email]
+    }
+    dumpSession(email, title, game)
+    game.terminate()
+    return(jsonify(returnObj))
+
+@app.route("/action", methods=['GET', 'POST'])
+def action():
+    print("\n\nAction Called\n\n")
+    loadSession()
+    print(session["profiles"])
+    email       = request.args.get('email')
+    title       = request.args.get('title')
+    action      = request.args.get('action')
+
+    # start a game, restore the save
+    game, title = startGame(title)
+    
+    areaDesc = restoreSave(f"{email}.{title}.AutoSave", game)
+    
+    print("about to sendline")
+    game.sendline(action)
+    game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
+    output = game.before.decode('utf-8')
+    saveGame(f"{email}.{title}.AutoSave", game)
+    print("sent line, saved")
+
+    resObj = {
+        "cmdOutput":        output,
+        "lookOutput":       areaDesc,
+        "userProfile":      session["profiles"][email]
+    }
+
+    print(f"action response item: {resObj}")
+
+    # autosave & save to your slot
+    dumpSession(email, title, game)
+    game.terminate()
+    # return whatever the game has given you
+    return(jsonify(resObj))
+
+
+
+@app.route("/save", methods=['GET', 'POST'])
+def save():
+    loadSession()
+    print("\n\nSave API Called\n\n")
+    email       = request.args.get('email')
+    title       = request.args.get('title')
+    saveName    = request.args.get('save')
+    # start a game, restore the save
+    game, title = startGame(title)
+    areaDesc = restoreSave(f"{email}.{title}.AutoSave", game)
+    saveGame("{email}.{title}.{saveName}", game)
+    session["profiles"][email][title].append(saveName)
+    dumpSession(email, title, game, saveFile)
+    game.terminate()
+    return (jsonify(session["profiles"][email]))
 
 if __name__ == "__main__":
     #start()
