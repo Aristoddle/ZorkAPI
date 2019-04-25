@@ -62,26 +62,26 @@ def dumpProfiles(profiles, email, title, game, saveFile="AutoSave"):
     with open(USER_PROFILES_FILE, 'wb') as f:
         pickle.dump(profiles, f)
 
-def saveGame(profiles, saveName, game):
-    print(f"\n\n SAVEGAME CALLED:  {saveName}\n\n")
+def saveGame(profiles, saveFile, game):
+    print(f"\n\n SAVEGAME CALLED:  {saveFile}\n\n")
     game.sendline(f"save")
     game.expect(':')
     prompt = game.before.decode('utf-8')
-    game.sendline(saveName)
-    entries = saveName.split(".")
+    game.sendline(saveFile)
+    entries = saveFile.split(".")
     if (entries[2] in profiles[entries[0]][entries[1]]):
         game.expect(['\?', pexpect.EOF, pexpect.TIMEOUT], timeout=5)
         game.sendline("yes")
     game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
     response = game.before.decode('utf-8')
 
-def restoreSave(saveName, game):
-    print(f"\n\n\nRESTORE SAVE CALLED\n {saveName}\n\n\n")
+def restoreSave(saveFile, game):
+    print(f"\n\n\nRESTORE SAVE CALLED\n {saveFile}\n\n\n")
     titleInfo, firstLine = getFirstLines(game)
     game.sendline("restore")
     game.expect(':')
     trash = game.before.decode('utf-8')
-    game.sendline(saveName)
+    game.sendline(saveFile)
     game.expect(['>', pexpect.EOF, pexpect.TIMEOUT], timeout=.2)
     trash = game.before.decode('utf-8')
     outputs = {
@@ -259,11 +259,11 @@ def save():
     print("\n\nSave API Called\n\n")
     email       = request.args.get('email')
     title       = request.args.get('title')
-    saveName    = request.args.get('save')
+    saveFile    = request.args.get('save')
     # start a game, restore the save
     game, title = startGame(title)
     areaDesc = restoreSave(f"{email}.{title}.AutoSave", game)
-    saveGame(profiles, "{email}.{title}.{saveName}", game)
+    saveGame(profiles, f"{email}.{title}.{saveFile}", game)
     dumpProfiles(profiles, email, title, game, saveFile)
     game.terminate()
     return (jsonify(profiles[email]))
