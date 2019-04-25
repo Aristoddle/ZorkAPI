@@ -1,0 +1,3 @@
+#!/bin/sh
+rm ./profiles.pickle
+touch ./profiles.pickle
