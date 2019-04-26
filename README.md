@@ -1,6 +1,8 @@
 # ZorkAPI
 This is the codebase for the flask-based server that serves ZorkBot, a Bot built on the Microsoft Bot Framework to modernize and make accessable Interactive Fiction games from the DOS era.
 
+This page also works as a general API definition for the system that it powers.  Read below and [CHECK OUT THE GITHUB-GENERATED WEBSITE] to read more about the system's functionality
+
 ## Running/Testing the Code
 * [Python3.6+](https://www.python.org/downloads/) (unique string modificaiton is done that was intruduced in Python 6)
 * [Flask](http://flask.pocoo.org/)
