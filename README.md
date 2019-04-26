@@ -4,8 +4,8 @@ This is the codebase for the flask-based server that serves ZorkBot.
 ## Running/Testing the Code:
 * [Python3.6+](https://www.python.org/downloads/) (unique string modificaiton is done that was intruduced in Python 6)
 * [Flask](http://flask.pocoo.org/)
-* Python3 [Pexpect](https://pexpect.readthedocs.io/en/stable/)
-* a LOCAL copy of [frotz for Unix](https://gitlab.com/DavidGriffith/frotz), from which the process will (manually jump around permisions levels to) can call the dfrotz command
+* [Pexpect](https://pexpect.readthedocs.io/en/stable/)
+* [frotz for Unix](https://gitlab.com/DavidGriffith/frotz), --specifically its *dfrotz* module, from which the process will (manually jump around permisions levels to) can call the dfrotz command
 * A unix-based host to serve the application from
 
 ## Getting the app online:
