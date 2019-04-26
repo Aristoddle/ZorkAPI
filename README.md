@@ -6,7 +6,7 @@ This is the codebase for the flask-based server that serves ZorkBot.
 * [Flask](http://flask.pocoo.org/)
 * [Pexpect](https://pexpect.readthedocs.io/en/stable/)
 * [frotz for Unix](https://gitlab.com/DavidGriffith/frotz), --specifically its *dfrotz* module, from which the process will (manually jump around permisions levels to) can call the dfrotz command
-* A unix-based host to serve the application from
+* [An Azure Virtual Machine](https://azure.microsoft.com/en-us/services/virtual-machines/), or any other unix-based host to serve the application from
 
 ## Getting the app online:
 Once you have the app running on a Linux host, you should be able to follow [this guide](https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-18-04) to establish and deploy the application using [Gunicorn](https://gunicorn.org/) and [nginx](https://www.nginx.com/)
