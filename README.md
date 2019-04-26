@@ -1,5 +1,5 @@
 # ZorkAPI
-This is the codebase for the flask-based server that serves ZorkBot.
+This is the codebase for the flask-based server that serves ZorkBot, a Bot built on the Microsoft Bot Framework to modernize and make accessable Interactive Fiction games from the DOS era.
 
 ## Running/Testing the Code:
 * [Python3.6+](https://www.python.org/downloads/) (unique string modificaiton is done that was intruduced in Python 6)
@@ -27,19 +27,19 @@ profileObjectExample = {
 } 
 ```
 
-## Core API Endpoints:
+# Core API Endpoints:
 
-### /user
+## /user
 
-> ### General Description:
+### General Description:
  
-> This endpoint is called when a user first pings the server.   If a user with the same email, or who has provided the same unique identifier, has already hit the system and begun to play games, this will return an object representing the set of (I decided to forgo formal security)
+This endpoint is called when a user first pings the server.   If a user with the same email, or who has provided the same unique identifier, has already hit the system and begun to play games, this will return an object representing the set of (I decided to forgo formal security)
 
-> ### Example Call:
+### Example Call:
 
-/user?email=user_email`
+`/user?email=user_email`
 
-> ### Return Object:
+### Return Object:
 
 ```python
 returnObject = { 
@@ -48,21 +48,21 @@ returnObject = {
 }
 ```
  
-> ### Arguments:
+### Arguments:
 
->  **email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
+**email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
 
-### /start
+## /start
 
-> ### General Description:
+### General Description:
  
-> This endpoint is called when a user tries to load a game other than the 'New Game' placeholder.  This will allow the user to write to from that save file forward  in later `/action` calls.
+This endpoint is called when a user tries to load a game other than the 'New Game' placeholder.  This will allow the user to write to from that save file forward  in later `/action` calls.
 
-> ### Example Call:
+### Example Call:
 
 `/start?email=user_email&title=game_title&save=safeFile`
 
-> ### Return Object:
+### Return Object:
 
 ```python
 returnObject = { 
@@ -72,25 +72,25 @@ returnObject = {
 }
 ```
 
-> ### Arguments:
+### Arguments:
 
-> **email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
+**email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
  
-> **title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
+**title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
 
-> **save**: The name of the specific saveFile that the user is trying to load.  After each turn in-game, the state is saved, the model object is updated, the game is closed, and the response is sent back to the user.  Normally, that most-recent save is stored at a  location called `AutoSave`, but through an explicit save dialog (see below), they can also set fixed save points within the story.  With the `/save` command, it is possible to load these older saves directly.
+**save**: The name of the specific saveFile that the user is trying to load.  After each turn in-game, the state is saved, the model object is updated, the game is closed, and the response is sent back to the user.  Normally, that most-recent save is stored at a  location called `AutoSave`, but through an explicit save dialog (see below), they can also set fixed save points within the story.  With the `/save` command, it is possible to load these older saves directly.
 
-### /newGame
+## /newGame
 
-> ### General Description:
+### General Description:
  
-> This endpoint is called when a user tries to load a game titled with the'New Game' placeholder.  The server will init that game, delete any potential AutoSaves for the game, and move the AutoSave head to the first state in the game (move 0).  This will allow the user to write to from that save file forward  in later `/action` calls.
+This endpoint is called when a user tries to load a game titled with the'New Game' placeholder.  The server will init that game, delete any potential AutoSaves for the game, and move the AutoSave head to the first state in the game (move 0).  This will allow the user to write to from that save file forward  in later `/action` calls.
 
-> ### Example Call
+### Example Call
 
-> `/newGame?email=user_email&title=game_title`
+`/newGame?email=user_email&title=game_title`
 
-> ### Return Object:
+### Return Object:
 
 ```python
 returnObject = { 
@@ -100,23 +100,23 @@ returnObject = {
 }
 ```
  
-> ### Arguments:
+### Arguments:
 
-> **email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
+**email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
  
-> **title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
+**title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
 
-### /action
+## /action
 
-> ### General Description:
+### General Description:
 
-> This call sits are the heart of the core gameplay loop for the server.  This is called after `/start` or `/newGame` have initialized a game state and set the position for the AutoSave.  It will load the AutoSave into the system, execute the given action, update the AutoSave, and then save the game before returning.  
+This call sits are the heart of the core gameplay loop for the server.  This is called after `/start` or `/newGame` have initialized a game state and set the position for the AutoSave.  It will load the AutoSave into the system, execute the given action, update the AutoSave, and then save the game before returning.  
 
-> ### Example Call
+### Example Call
 
 `/newGame?email=user_email&title=game_title`
 
-> ### Return Object:
+### Return Object:
 
 ```python
 returnObject = {
@@ -126,8 +126,8 @@ returnObject = {
     }
 ```
 
-> ### Arguments: 
+### Arguments: 
 
-> **email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
+**email**: the email of the given user, will either be pulled directly from device that the user uses to access the API, or will be provided by the user after a short dialogue.  Used to organize persistent save files for a user, and allows them to user the system statelesslessly
  
-> **title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
+**title**: The title of the game that the user is playing.  Needed so that dfrotz can be used to spin up an instance of the right game for the user to play
