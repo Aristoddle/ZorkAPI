@@ -36,7 +36,7 @@ profileObjectExample = {
 
 ### General Description:
  
-This endpoint is called when a user first pings the server.   If a user with the same email, or who has provided the same unique identifier, has already hit the system and begun to play games, this will return an object representing the set of (I decided to forgo formal security)
+This endpoint is called when a user first pings the server.   If a user profile object (as defined above) exists for that email or account name, it will be returned.
 
 ### Example Call:
 
